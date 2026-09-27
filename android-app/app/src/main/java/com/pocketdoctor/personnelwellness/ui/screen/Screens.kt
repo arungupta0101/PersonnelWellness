@@ -583,9 +583,15 @@ fun DailyWellnessScreen(
     viewModel: WellnessViewModel? = null
 ) {
     val checkInStatus = viewModel?.checkInStatus?.collectAsStateWithLifecycle()?.value
+    val hasSubmittedToday = viewModel?.hasSubmittedToday?.collectAsStateWithLifecycle()?.value ?: false
+
+    LaunchedEffect(Unit) {
+        viewModel?.loadHistory()
+    }
 
     DailyWellnessScreenContent(
         checkInStatus = checkInStatus,
+        hasSubmittedToday = hasSubmittedToday,
         onSubmitCheckIn = { mood, sleepHours, stressLevel ->
             viewModel?.submitDailyCheckIn(mood, sleepHours, stressLevel)
         },
@@ -598,6 +604,7 @@ fun DailyWellnessScreen(
 @Composable
 fun DailyWellnessScreenContent(
     checkInStatus: ApiResult<Unit>? = null,
+    hasSubmittedToday: Boolean = false,
     onSubmitCheckIn: (String, Float, Int) -> Unit = { _, _, _ -> },
     onResetCheckInStatus: () -> Unit = {},
     onPopBackStack: () -> Unit = {}
@@ -631,6 +638,29 @@ fun DailyWellnessScreenContent(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                if (hasSubmittedToday) {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = Color(0x2B10B981)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = LowRiskGreen,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Today's wellness check-in has already been submitted.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = LowRiskGreen
+                            )
+                        }
+                    }
+                }
+
                 // Step Indicator Header
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -660,16 +690,17 @@ fun DailyWellnessScreenContent(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        moods.forEach { (item, emoji, label) ->
+                        moods.forEach { (item, emoji, _) ->
                             val selected = mood == item
                             FilterChip(
                                 selected = selected,
-                                onClick = { mood = item },
+                                onClick = { if (!hasSubmittedToday) mood = item },
                                 label = { Text("$emoji $item") },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = ElectricCyan,
                                     selectedLabelColor = NavyBackgroundDark
-                                )
+                                ),
+                                enabled = !hasSubmittedToday
                             )
                         }
                     }
@@ -691,6 +722,7 @@ fun DailyWellnessScreenContent(
                         onValueChange = { sleepHours = it },
                         valueRange = 3f..12f,
                         steps = 17,
+                        enabled = !hasSubmittedToday,
                         colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan)
                     )
                 }
@@ -711,17 +743,28 @@ fun DailyWellnessScreenContent(
                         onValueChange = { stressLevel = it },
                         valueRange = 1f..10f,
                         steps = 8,
+                        enabled = !hasSubmittedToday,
                         colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan)
                     )
                 }
 
-                GlassButton(
-                    text = "Submit Check-in",
-                    onClick = { onSubmitCheckIn(mood, sleepHours, stressLevel.toInt()) },
-                    isLoading = checkInStatus is ApiResult.Loading,
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Default.Check
-                )
+                if (hasSubmittedToday) {
+                    GlassOutlinedButton(
+                        text = "Already Submitted Today ✅",
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Default.CheckCircle
+                    )
+                } else {
+                    GlassButton(
+                        text = "Submit Check-in",
+                        onClick = { onSubmitCheckIn(mood, sleepHours, stressLevel.toInt()) },
+                        isLoading = checkInStatus is ApiResult.Loading,
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Default.Check
+                    )
+                }
             }
         }
     }
@@ -936,6 +979,53 @@ fun WellnessRiskResultScreenContent(
                             riskLevel = risk.riskLevel,
                             recommendation = risk.recommendation
                         )
+
+                        if (risk.topContributingFactors.isNotEmpty()) {
+                            SectionHeader(title = "Top Contributing Factors")
+                            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                risk.topContributingFactors.forEach { factor ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = factor.displayName.ifBlank { factor.feature },
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Impact: ${"%.2f".format(factor.impactScore)}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = CoolBlueLight
+                                        )
+                                    }
+                                    if (factor.description.isNotBlank()) {
+                                        Text(
+                                            text = factor.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = Color.Gray.copy(alpha = 0.2f))
+                                }
+                            }
+                        }
+
+                        if (risk.welfareRecommendations.isNotEmpty()) {
+                            SectionHeader(title = "Welfare Recommendations")
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                risk.welfareRecommendations.forEach { recText ->
+                                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(text = recText, style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     is ApiResult.Error -> {
                         ErrorStateCard(message = riskResult.message, onRetry = onRetry)
@@ -963,17 +1053,23 @@ fun WellnessHistoryScreen(
     navController: NavController,
     viewModel: WellnessViewModel? = null
 ) {
-    val historyList = viewModel?.history?.collectAsStateWithLifecycle()?.value ?: emptyList()
+    val historyState = viewModel?.historyState?.collectAsStateWithLifecycle()?.value ?: ApiResult.Loading
+
+    LaunchedEffect(Unit) {
+        viewModel?.loadHistory()
+    }
 
     WellnessHistoryScreenContent(
-        historyList = historyList,
+        historyState = historyState,
+        onRetry = { viewModel?.loadHistory() },
         onPopBackStack = { navController.popBackStack() }
     )
 }
 
 @Composable
 fun WellnessHistoryScreenContent(
-    historyList: List<WellnessRecord> = emptyList(),
+    historyState: ApiResult<List<WellnessRecord>> = ApiResult.Loading,
+    onRetry: () -> Unit = {},
     onPopBackStack: () -> Unit = {}
 ) {
     var selectedFilter by remember { mutableStateOf("7 Days") }
@@ -1006,38 +1102,58 @@ fun WellnessHistoryScreenContent(
                     }
                 }
 
-                if (historyList.isEmpty()) {
-                    EmptyStateCard(
-                        title = "No History Logs",
-                        message = "Your check-in logs and stress assessment history will appear here."
-                    )
-                } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(historyList) { record ->
-                            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(record.date, fontWeight = FontWeight.Bold, color = ElectricCyan)
-                                    Surface(
-                                        color = SoftCyanGlow,
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(record.mood, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = CoolBlueLight)
+                when (historyState) {
+                    is ApiResult.Loading -> LoadingCard(height = 180.dp)
+                    is ApiResult.Error -> ErrorStateCard(message = historyState.message, onRetry = onRetry)
+                    is ApiResult.Success -> {
+                        val historyList = historyState.data
+                        if (historyList.isEmpty()) {
+                            EmptyStateCard(
+                                title = "No History Logs",
+                                message = "Your check-in logs and stress assessment history will appear here."
+                            )
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(historyList) { record ->
+                                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(record.date, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                                            Surface(
+                                                color = SoftCyanGlow,
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = record.mood,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = CoolBlueLight
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Sleep: ${record.sleepHours} hrs", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Stress Score: ${record.stressLevel}/10", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                        }
+                                        if (!record.notes.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "Notes: ${record.notes}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Sleep: ${record.sleepHours} hrs", style = MaterialTheme.typography.bodyMedium)
-                                    Text("Stress Score: ${record.stressLevel}/10", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -1299,9 +1415,11 @@ fun WellnessRiskResultScreenPreview() {
 fun WellnessHistoryScreenPreview() {
     PersonnelWellnessTheme(dynamicColor = false) {
         WellnessHistoryScreenContent(
-            historyList = listOf(
-                WellnessRecord("1", "2025-01-15", "Happy", 8f, 2),
-                WellnessRecord("2", "2025-01-14", "Tired", 6f, 5)
+            historyState = ApiResult.Success(
+                listOf(
+                    WellnessRecord("1", "2026-09-27", "Happy", 7.5f, 3, "Synthetic demo check-in"),
+                    WellnessRecord("2", "2026-09-26", "Tired", 6.0f, 5)
+                )
             )
         )
     }

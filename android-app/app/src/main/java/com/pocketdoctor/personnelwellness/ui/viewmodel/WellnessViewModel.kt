@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.pocketdoctor.personnelwellness.data.model.ApiResult
 import com.pocketdoctor.personnelwellness.data.model.WellnessRecord
 import com.pocketdoctor.personnelwellness.data.model.WellnessRisk
+import com.pocketdoctor.personnelwellness.data.model.isTodayDate
 import com.pocketdoctor.personnelwellness.data.repository.WellnessRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +14,11 @@ import kotlinx.coroutines.launch
 
 class WellnessViewModel(private val repository: WellnessRepository) : ViewModel() {
 
-    private val _history = MutableStateFlow<List<WellnessRecord>>(emptyList())
-    val history: StateFlow<List<WellnessRecord>> = _history.asStateFlow()
+    private val _historyState = MutableStateFlow<ApiResult<List<WellnessRecord>>>(ApiResult.Loading)
+    val historyState: StateFlow<ApiResult<List<WellnessRecord>>> = _historyState.asStateFlow()
+
+    private val _hasSubmittedToday = MutableStateFlow(false)
+    val hasSubmittedToday: StateFlow<Boolean> = _hasSubmittedToday.asStateFlow()
 
     private val _latestRisk = MutableStateFlow<ApiResult<WellnessRisk>?>(null)
     val latestRisk: StateFlow<ApiResult<WellnessRisk>?> = _latestRisk.asStateFlow()
@@ -33,10 +37,16 @@ class WellnessViewModel(private val repository: WellnessRepository) : ViewModel(
         loadHistory()
     }
 
-    private fun loadHistory() {
+    fun loadHistory() {
         viewModelScope.launch {
-            repository.getWellnessHistory().collect {
-                _history.value = it
+            _historyState.value = ApiResult.Loading
+            val result = repository.getWellnessHistoryApi()
+            result.onSuccess { records ->
+                _historyState.value = ApiResult.Success(records)
+                _hasSubmittedToday.value = records.any { isTodayDate(it.date) }
+            }
+            result.onFailure { error ->
+                _historyState.value = ApiResult.Error(error.message ?: "Failed to load history records")
             }
         }
     }
@@ -51,9 +61,16 @@ class WellnessViewModel(private val repository: WellnessRepository) : ViewModel(
             val result = repository.submitDailyCheckInApi(mood, sleepHours, stressLevel)
             result.onSuccess {
                 _checkInStatus.value = ApiResult.Success(Unit)
+                _hasSubmittedToday.value = true
+                loadHistory() // Auto-refresh history & submission status from backend
             }
-            result.onFailure {
-                _checkInStatus.value = ApiResult.Error(it.message ?: "Network error occurred")
+            result.onFailure { error ->
+                val errorMsg = error.message ?: "Network error occurred"
+                _checkInStatus.value = ApiResult.Error(errorMsg)
+                if (errorMsg.contains("already been submitted", ignoreCase = true) || errorMsg.contains("409", ignoreCase = true)) {
+                    _hasSubmittedToday.value = true
+                    loadHistory() // Auto-refresh status from backend
+                }
             }
         }
     }
@@ -61,7 +78,6 @@ class WellnessViewModel(private val repository: WellnessRepository) : ViewModel(
     fun submitWorkloadEntry(hours: Float, dutyType: String) {
         lastWorkload = hours
         lastDutyType = dutyType
-        // Also triggers prediction for demonstration flow
         fetchRiskPrediction()
     }
 
@@ -85,7 +101,6 @@ class WellnessViewModel(private val repository: WellnessRepository) : ViewModel(
     }
 
     fun submitStressAssessment(answers: List<Int>) {
-        // Mock assessment logic
         viewModelScope.launch {
             repository.submitStressAssessment(answers)
         }

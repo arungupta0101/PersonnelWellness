@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text
@@ -8,6 +9,7 @@ from sqlalchemy import text
 from app.auth.service import ensure_seed_data
 from app.config import settings
 from app.database import Base, SessionLocal, engine
+from app.ml.model_loader import get_model_loader
 from app.models import (  # noqa: F401
     Assessment,
     AuditLog,
@@ -37,8 +39,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """
-    Resilient startup lifespan. Attempts database migration and seed data creation.
-    If database is temporarily unreachable, logs warning without crashing Uvicorn.
+    Resilient startup lifespan.
+    1. Attempts database migration and seed data creation.
+    2. Validates production ML model loader readiness.
+    If database or ML model is temporarily unreachable, logs warning without crashing Uvicorn.
     """
     try:
         Base.metadata.create_all(bind=engine)
@@ -47,6 +51,17 @@ async def lifespan(_: FastAPI):
         print("[STARTUP SUCCESS] Database tables created and seed data verified.")
     except Exception as e:
         print(f"[STARTUP WARNING] Database initialization failed during startup: {e}")
+
+    try:
+        loader = get_model_loader()
+        is_ready, msg = loader.is_ready()
+        if is_ready:
+            print(f"[STARTUP SUCCESS] ML Model '{loader.model_name}' ({loader.model_version}) loaded successfully.")
+        else:
+            print(f"[STARTUP WARNING] ML Model load warning: {msg}")
+    except Exception as e:
+        print(f"[STARTUP WARNING] ML Model load failed during startup: {e}")
+
     yield
 
 
@@ -85,3 +100,35 @@ def health() -> HealthResponse:
         db_status = f"error: {str(e)}"
 
     return HealthResponse(status="ok", database=db_status)
+
+
+@app.get("/health/ml", tags=["System"])
+def health_ml():
+    """ML Model Readiness Endpoint."""
+    try:
+        loader = get_model_loader()
+        is_ready, msg = loader.is_ready()
+        if not is_ready:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "status": "error",
+                    "model_loaded": False,
+                    "detail": msg,
+                },
+            )
+        return {
+            "status": "ok",
+            "model_loaded": True,
+            "model_name": loader.model_name,
+            "model_version": loader.model_version,
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "error",
+                "model_loaded": False,
+                "detail": "ML model artifacts are currently unavailable.",
+            },
+        )

@@ -41,8 +41,10 @@ def run_master_test_suite():
             td.test_health_endpoint,
         ]),
         ("ML Risk Model Pipeline (test_prediction.py)", [
-            tp.test_predict_endpoint_high_risk,
-            tp.test_predict_endpoint_low_risk,
+            tp.test_task4_a_model_loader_artifacts_loaded,
+            tp.test_task4_b_c_model_loader_predict_and_explain,
+            tp.test_task4_d_e_f_predict_endpoint_and_db_persistence,
+            tp.test_task5_health_ml_endpoint,
         ]),
         ("Authentication & RBAC (test_auth_rbac.py)", [
             tar.test_login_and_jwt_generation,
@@ -60,7 +62,7 @@ def run_master_test_suite():
             tps.test_minimum_necessary_data_exposure_unit_summary,
         ]),
         ("One Check-in Per Day Rule (test_daily_checkin_rule.py)", [
-            tdcr.test_one_checkin_per_day_rule,
+            tdcr.test_requirements_a_through_f_daily_checkin_rule,
         ]),
         ("Comprehensive User Flows & Edge Cases (test_comprehensive_flows.py)", [
             tcf.test_flow_1_and_8_personnel_and_officer_login,

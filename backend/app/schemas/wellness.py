@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import Field
 
@@ -9,9 +10,14 @@ class WellnessCheckinCreate(ORMModel):
     mood: int = Field(ge=1, le=10)
     stress_level: int = Field(ge=1, le=10)
     sleep_hours: float = Field(ge=0, le=24)
-    notes: str | None = Field(default=None, max_length=2000)
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
 
 class WellnessCheckinResponse(WellnessCheckinCreate):
     id: int
     created_at: datetime
+
+
+class TodayCheckInStatus(ORMModel):
+    has_submitted: bool
+    checkin: Optional[WellnessCheckinResponse] = None

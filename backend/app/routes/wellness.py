@@ -17,10 +17,41 @@ from app.auth.dependencies import (
 )
 from app.database import get_db
 from app.models.entities import Consent, User, WellnessCheckin
-from app.schemas.wellness import WellnessCheckinCreate, WellnessCheckinResponse
+from app.schemas.wellness import TodayCheckInStatus, WellnessCheckinCreate, WellnessCheckinResponse
 from app.services.audit_service import log_audit
 
 router = APIRouter(prefix="/wellness", tags=["Wellness"])
+
+
+@router.get(
+    "/today-status",
+    response_model=TodayCheckInStatus,
+    summary="Get Today's Check-in Status",
+)
+def get_today_status(
+    current_user: User = Depends(require_roles([ROLE_PERSONNEL, ROLE_ADMIN, ROLE_WELFARE_OFFICER])),
+    db: Session = Depends(get_db),
+) -> TodayCheckInStatus:
+    """Returns whether the authenticated user has submitted a wellness check-in today."""
+    now_utc = datetime.now(timezone.utc)
+    start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day + timedelta(days=1)
+
+    existing_today = (
+        db.query(WellnessCheckin)
+        .filter(
+            WellnessCheckin.user_id == current_user.id,
+            WellnessCheckin.created_at >= start_of_day,
+            WellnessCheckin.created_at < end_of_day,
+        )
+        .order_by(WellnessCheckin.created_at.desc())
+        .first()
+    )
+
+    if existing_today:
+        return TodayCheckInStatus(has_submitted=True, checkin=existing_today)
+    else:
+        return TodayCheckInStatus(has_submitted=False, checkin=None)
 
 
 @router.post(
@@ -54,7 +85,7 @@ def create_checkin(
     if existing_today:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Today's wellness check-in has already been submitted.",
+            detail="Daily wellness check-in already submitted for today.",
         )
 
     checkin = WellnessCheckin(user_id=current_user.id, **payload.model_dump())

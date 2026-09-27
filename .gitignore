@@ -39,11 +39,14 @@ htmlcov/
 test_output.log
 
 # ------------------------------------------
-# 5. ML Models & Large Binaries (Optional local outputs)
+# 5. ML Models & Large Binaries (Track required production artifacts in ml/models/)
 # ------------------------------------------
 *.joblib
 *.pkl
-ml/models/*.joblib
+!ml/models/stress_risk_model.joblib
+!ml/models/pipeline.joblib
+!ml/models/preprocessor.joblib
+!ml/models/label_encoder.joblib
 !ml/models/.gitkeep
 
 # ------------------------------------------
