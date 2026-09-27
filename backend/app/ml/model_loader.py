@@ -8,15 +8,12 @@ Provides prediction and tree-based feature contribution explainability.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
-
-# Default model directory path
-PRIMARY_MODEL_DIR = Path("D:/Projects/PersonnelWellness/ml/models")
-FALLBACK_MODEL_DIR = Path(__file__).resolve().parent.parent.parent.parent / "ml" / "models"
 
 FEATURE_COLUMNS = [
     "duty_hours_day",
@@ -57,12 +54,28 @@ class ModelLoader:
     def _resolve_model_dir(self, custom_dir: Optional[Path]) -> Path:
         if custom_dir and custom_dir.exists():
             return custom_dir
-        if PRIMARY_MODEL_DIR.exists():
-            return PRIMARY_MODEL_DIR
-        if FALLBACK_MODEL_DIR.exists():
-            return FALLBACK_MODEL_DIR
+
+        # Check explicit MODEL_DIR environment variable
+        env_dir = os.environ.get("MODEL_DIR")
+        if env_dir and Path(env_dir).exists():
+            return Path(env_dir)
+
+        # Candidate relative directories across cloud deployment layouts
+        curr_file = Path(__file__).resolve()
+        candidates = [
+            curr_file.parents[3] / "ml" / "models",  # Repo Root / ml / models
+            curr_file.parents[2] / "ml" / "models",  # backend / ml / models
+            Path.cwd() / "ml" / "models",           # Working Directory / ml / models
+            Path.cwd().parent / "ml" / "models",    # Parent Working Directory / ml / models
+        ]
+
+        for cand in candidates:
+            if cand.exists() and (cand / "stress_risk_model.joblib").exists():
+                return cand
+
         raise FileNotFoundError(
-            f"Could not locate ML models directory at {PRIMARY_MODEL_DIR} or {FALLBACK_MODEL_DIR}"
+            f"Could not locate ML models directory with stress_risk_model.joblib. "
+            f"Checked candidates: {[str(c) for c in candidates]}"
         )
 
     def _load_artifacts(self):
