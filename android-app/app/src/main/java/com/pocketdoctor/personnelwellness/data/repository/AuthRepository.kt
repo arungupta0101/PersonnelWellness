@@ -44,9 +44,9 @@ class AppAuthRepository(
         } catch (e: Exception) {
             val url = RetrofitClient.BASE_URL
             val msg = when (e) {
-                is ConnectException -> "Connection failed to $url. Ensure FastAPI server is running."
-                is SocketTimeoutException -> "Request timed out connecting to $url."
-                is UnknownHostException -> "Unable to resolve backend host $url."
+                is ConnectException -> "Connection failed to $url. Please check your network connection."
+                is SocketTimeoutException -> "Connection timed out connecting to $url. Server may be waking up (Render cold start)."
+                is UnknownHostException -> "Unable to resolve host $url."
                 else -> e.localizedMessage ?: "Network error occurred."
             }
             Result.failure(Exception(msg))
@@ -74,9 +74,9 @@ class AppAuthRepository(
         } catch (e: Exception) {
             val url = RetrofitClient.BASE_URL
             val msg = when (e) {
-                is ConnectException -> "Connection failed to $url. Ensure FastAPI server is running."
-                is SocketTimeoutException -> "Request timed out connecting to $url."
-                is UnknownHostException -> "Unable to resolve backend host $url."
+                is ConnectException -> "Connection failed to $url. Please check your network connection."
+                is SocketTimeoutException -> "Connection timed out connecting to $url. Server may be waking up (Render cold start)."
+                is UnknownHostException -> "Unable to resolve host $url."
                 else -> e.localizedMessage ?: "Network error occurred."
             }
             Result.failure(Exception(msg))

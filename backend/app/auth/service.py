@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.auth.security import hash_password
@@ -89,6 +89,8 @@ def ensure_seed_data(db: Session) -> None:
         if seed["role"] == "personnel":
             existing_checkin = db.query(WellnessCheckin).filter(WellnessCheckin.user_id == user.id).first()
             if not existing_checkin:
+                # Seed historical check-in for yesterday so current day starts fresh
+                yesterday_utc = datetime.now(timezone.utc) - timedelta(days=1)
                 db.add(
                     WellnessCheckin(
                         user_id=user.id,
@@ -96,6 +98,7 @@ def ensure_seed_data(db: Session) -> None:
                         stress_level=3,
                         sleep_hours=7.5,
                         notes="Synthetic demo check-in: Feeling focused and well-rested.",
+                        created_at=yesterday_utc,
                     )
                 )
 

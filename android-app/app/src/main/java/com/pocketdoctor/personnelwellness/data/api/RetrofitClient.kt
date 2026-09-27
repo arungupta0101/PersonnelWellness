@@ -9,9 +9,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    // Default to 127.0.0.1:8000 for physical phone with `adb reverse tcp:8000 tcp:8000`
-    // Can also be set to PC Wi-Fi IP (e.g. "http://192.168.1.186:8000/") or "http://10.0.2.2:8000/" for Emulator
-    var BASE_URL: String = "http://127.0.0.1:8000/"
+    // Production Deployed Render FastAPI Backend URL
+    var BASE_URL: String = "https://personnelwellness.onrender.com/"
         private set
 
     private var tokenManager: TokenManager? = null
@@ -52,8 +51,9 @@ object RetrofitClient {
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
         .addInterceptor(authInterceptor)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     private fun getRetrofit(): Retrofit {

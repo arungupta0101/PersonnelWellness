@@ -18,6 +18,7 @@ import tests.test_prediction as tp
 import tests.test_auth_rbac as tar
 import tests.test_privacy_security as tps
 import tests.test_comprehensive_flows as tcf
+import tests.test_daily_checkin_rule as tdcr
 
 
 def run_master_test_suite():
@@ -57,6 +58,9 @@ def run_master_test_suite():
             tps.test_consent_enforcement_on_welfare_officer_access,
             tps.test_sensitive_data_redaction,
             tps.test_minimum_necessary_data_exposure_unit_summary,
+        ]),
+        ("One Check-in Per Day Rule (test_daily_checkin_rule.py)", [
+            tdcr.test_one_checkin_per_day_rule,
         ]),
         ("Comprehensive User Flows & Edge Cases (test_comprehensive_flows.py)", [
             tcf.test_flow_1_and_8_personnel_and_officer_login,

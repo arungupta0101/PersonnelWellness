@@ -5,6 +5,7 @@ import com.pocketdoctor.personnelwellness.data.model.CheckInRequest
 import com.pocketdoctor.personnelwellness.data.model.PredictRequest
 import com.pocketdoctor.personnelwellness.data.model.WellnessRecord
 import com.pocketdoctor.personnelwellness.data.model.WellnessRisk
+import com.pocketdoctor.personnelwellness.data.model.mapMoodToScore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -26,35 +27,35 @@ class AppWellnessRepository(private val apiServiceProvider: () -> WellnessApiSer
 
     override fun getWellnessHistory(): Flow<List<WellnessRecord>> = flowOf(
         listOf(
-            WellnessRecord("1", "2023-10-27", "Happy", 8f, 2),
-            WellnessRecord("2", "2023-10-26", "Tired", 6f, 5),
-            WellnessRecord("3", "2023-10-25", "Stressed", 5f, 8)
+            WellnessRecord("1", "2025-01-15", "Happy", 8f, 2),
+            WellnessRecord("2", "2025-01-14", "Tired", 6f, 5),
+            WellnessRecord("3", "2025-01-13", "Stressed", 5f, 8)
         )
     )
 
     override fun getLatestRiskResult(): Flow<WellnessRisk> = flowOf(
-        WellnessRisk("Moderate", 45, "Consider taking a short break and practicing mindfulness.")
+        WellnessRisk(riskLevel = "LOW", rawScore = 0.15, recommendationsList = listOf("Maintain optimal duty-rest balance."))
     )
 
-    override suspend fun submitDailyCheckIn(mood: String, sleepHours: Float, stressLevel: Int) {
-        // Mocked implementation local fallback
-    }
-
-    override suspend fun submitStressAssessment(answers: List<Int>) {
-        // Mocked implementation local fallback
-    }
-
-    override suspend fun submitWorkloadEntry(hours: Float, dutyType: String) {
-        // Mocked implementation local fallback
-    }
+    override suspend fun submitDailyCheckIn(mood: String, sleepHours: Float, stressLevel: Int) {}
+    override suspend fun submitStressAssessment(answers: List<Int>) {}
+    override suspend fun submitWorkloadEntry(hours: Float, dutyType: String) {}
 
     override suspend fun submitDailyCheckInApi(mood: String, sleepHours: Float, stressLevel: Int): Result<Unit> {
+        val moodScore = mapMoodToScore(mood)
+        val request = CheckInRequest(
+            mood = moodScore,
+            sleepHours = sleepHours,
+            stressLevel = stressLevel,
+            notes = null
+        )
         return try {
-            val response = apiService.submitCheckIn(CheckInRequest(mood, sleepHours, stressLevel))
+            val response = apiService.submitCheckIn(request)
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("API Error: ${response.code()} ${response.message()}"))
+                val errBody = response.errorBody()?.string() ?: ""
+                Result.failure(Exception("Check-in failed (${response.code()}): $errBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -68,13 +69,21 @@ class AppWellnessRepository(private val apiServiceProvider: () -> WellnessApiSer
         workloadHours: Float,
         dutyType: String
     ): Result<WellnessRisk> {
+        val moodScore = mapMoodToScore(mood).toFloat()
+        val request = PredictRequest(
+            dutyHours = workloadHours,
+            sleepHours = sleepHours,
+            stressScore = stressLevel.toFloat(),
+            moodScore = moodScore
+        )
         return try {
-            val response = apiService.predictRisk(PredictRequest(mood, sleepHours, stressLevel, workloadHours, dutyType))
+            val response = apiService.predictRisk(request)
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 Result.success(body)
             } else {
-                Result.failure(Exception("API Error: ${response.code()} ${response.message()}"))
+                val errBody = response.errorBody()?.string() ?: ""
+                Result.failure(Exception("Prediction failed (${response.code()}): $errBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -85,14 +94,13 @@ class AppWellnessRepository(private val apiServiceProvider: () -> WellnessApiSer
 class MockWellnessRepository : WellnessRepository {
     override fun getWellnessHistory(): Flow<List<WellnessRecord>> = flowOf(
         listOf(
-            WellnessRecord("1", "2023-10-27", "Happy", 8f, 2),
-            WellnessRecord("2", "2023-10-26", "Tired", 6f, 5),
-            WellnessRecord("3", "2023-10-25", "Stressed", 5f, 8)
+            WellnessRecord("1", "2025-01-15", "Happy", 8f, 2),
+            WellnessRecord("2", "2025-01-14", "Tired", 6f, 5)
         )
     )
 
     override fun getLatestRiskResult(): Flow<WellnessRisk> = flowOf(
-        WellnessRisk("Moderate", 45, "Consider taking a short break and practicing mindfulness.")
+        WellnessRisk(riskLevel = "LOW", rawScore = 0.15, recommendationsList = listOf("Maintain optimal duty-rest balance."))
     )
 
     override suspend fun submitDailyCheckIn(mood: String, sleepHours: Float, stressLevel: Int) {}
@@ -104,6 +112,6 @@ class MockWellnessRepository : WellnessRepository {
     }
 
     override suspend fun predictRiskApi(mood: String, sleepHours: Float, stressLevel: Int, workloadHours: Float, dutyType: String): Result<WellnessRisk> {
-        return Result.success(WellnessRisk("Low", 15, "Mock recommendation"))
+        return Result.success(WellnessRisk(riskLevel = "LOW", rawScore = 0.15, recommendationsList = listOf("Maintain optimal duty-rest balance.")))
     }
 }

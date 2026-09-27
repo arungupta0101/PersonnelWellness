@@ -1,9 +1,10 @@
 """
 Wellness API Router
 ====================
-Provides endpoints for personnel wellness check-ins.
+Provides endpoints for personnel wellness check-ins with server-side rate limiting (1 check-in per calendar day).
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -33,7 +34,29 @@ def create_checkin(
     current_user: User = Depends(require_roles([ROLE_PERSONNEL, ROLE_ADMIN])),
     db: Session = Depends(get_db),
 ) -> WellnessCheckin:
-    """Personnel endpoint for creating personal daily wellness check-ins."""
+    """
+    Personnel endpoint for creating personal daily wellness check-ins.
+    Enforces server-side rule: Maximum 1 check-in per calendar day per user.
+    """
+    now_utc = datetime.now(timezone.utc)
+    start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day + timedelta(days=1)
+
+    existing_today = (
+        db.query(WellnessCheckin)
+        .filter(
+            WellnessCheckin.user_id == current_user.id,
+            WellnessCheckin.created_at >= start_of_day,
+            WellnessCheckin.created_at < end_of_day,
+        )
+        .first()
+    )
+    if existing_today:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Today's wellness check-in has already been submitted.",
+        )
+
     checkin = WellnessCheckin(user_id=current_user.id, **payload.model_dump())
     db.add(checkin)
     db.commit()
