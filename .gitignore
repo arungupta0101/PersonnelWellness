@@ -1,0 +1,70 @@
+# ==========================================
+# Personnel Wellness Security & Build .gitignore
+# ==========================================
+
+# ------------------------------------------
+# 1. Environment Secrets & Configuration
+# ------------------------------------------
+.env
+*.env
+backend/.env
+!.env.example
+
+# ------------------------------------------
+# 2. Database Files
+# ------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+backend/wellness.db
+
+# ------------------------------------------
+# 3. Python & Virtual Environments
+# ------------------------------------------
+venv/
+env/
+ENV/
+.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ------------------------------------------
+# 4. Testing & Coverage Caches
+# ------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+test_output.log
+
+# ------------------------------------------
+# 5. ML Models & Large Binaries (Optional local outputs)
+# ------------------------------------------
+*.joblib
+*.pkl
+ml/models/*.joblib
+!ml/models/.gitkeep
+
+# ------------------------------------------
+# 6. Android Build Artifacts & Local Configs
+# ------------------------------------------
+.gradle/
+build/
+app/build/
+local.properties
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# ------------------------------------------
+# 7. IDE & OS Generated Files
+# ------------------------------------------
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

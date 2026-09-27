@@ -1,0 +1,65 @@
+{
+  "accuracy": 0.995,
+  "precision_macro": 0.9978768577494691,
+  "recall_macro": 0.9840232389251997,
+  "f1_macro": 0.9908446480980783,
+  "precision_weighted": 0.995031847133758,
+  "recall_weighted": 0.995,
+  "f1_weighted": 0.9949776482610386,
+  "confusion_matrix": [
+    [
+      33,
+      0,
+      1
+    ],
+    [
+      0,
+      53,
+      1
+    ],
+    [
+      0,
+      0,
+      312
+    ]
+  ],
+  "class_names": [
+    "LOW",
+    "MODERATE",
+    "HIGH"
+  ],
+  "classification_report": {
+    "LOW": {
+      "precision": 1.0,
+      "recall": 0.9705882352941176,
+      "f1-score": 0.9850746268656716,
+      "support": 34.0
+    },
+    "MODERATE": {
+      "precision": 1.0,
+      "recall": 0.9814814814814815,
+      "f1-score": 0.9906542056074766,
+      "support": 54.0
+    },
+    "HIGH": {
+      "precision": 0.9936305732484076,
+      "recall": 1.0,
+      "f1-score": 0.9968051118210862,
+      "support": 312.0
+    },
+    "accuracy": 0.995,
+    "macro avg": {
+      "precision": 0.9978768577494691,
+      "recall": 0.9840232389251997,
+      "f1-score": 0.9908446480980783,
+      "support": 400.0
+    },
+    "weighted avg": {
+      "precision": 0.995031847133758,
+      "recall": 0.995,
+      "f1-score": 0.9949776482610386,
+      "support": 400.0
+    }
+  },
+  "disclaimer": "Welfare-risk screening prototype evaluation results. Synthetic dataset used for prototype demonstration. Not clinically validated."
+}

@@ -1,0 +1,49 @@
+{
+  "model_name": "Gradient Boosting",
+  "selected_timestamp": "2026-09-25T18:44:44.280014+00:00",
+  "disclaimer": "This machine-learning model is a welfare-risk screening prototype for demonstration purposes. It is NOT clinically validated and must NOT be used as a medical or psychological diagnosis system.",
+  "features": [
+    "duty_hours_day",
+    "weekly_duty_hours",
+    "deployment_days",
+    "night_shifts",
+    "workload_score",
+    "training_load",
+    "transfer_frequency",
+    "sleep_hours",
+    "leave_days",
+    "rest_days",
+    "self_reported_stress",
+    "fatigue_score",
+    "mood_score",
+    "social_support_score"
+  ],
+  "target_classes": [
+    "LOW",
+    "MODERATE",
+    "HIGH"
+  ],
+  "comparison_results": {
+    "Logistic Regression": {
+      "cv_accuracy_mean": 0.8443750000000001,
+      "cv_f1_macro_mean": 0.6514053407255108,
+      "test_accuracy": 0.8525,
+      "test_f1_macro": 0.6699473954705222
+    },
+    "Random Forest": {
+      "cv_accuracy_mean": 0.94625,
+      "cv_f1_macro_mean": 0.8883787517624546,
+      "test_accuracy": 0.9725,
+      "test_f1_macro": 0.9502900782204206
+    },
+    "Gradient Boosting": {
+      "cv_accuracy_mean": 0.996875,
+      "cv_f1_macro_mean": 0.9918528971857971,
+      "test_accuracy": 0.995,
+      "test_f1_macro": 0.9908446480980783
+    }
+  },
+  "best_cv_f1_macro": 0.9908446480980783,
+  "best_test_accuracy": 0.995,
+  "best_test_f1_macro": 0.9908446480980783
+}
