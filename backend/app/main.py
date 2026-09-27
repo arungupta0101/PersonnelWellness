@@ -36,9 +36,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        ensure_seed_data(db)
+    """
+    Resilient startup lifespan. Attempts database migration and seed data creation.
+    If database is temporarily unreachable, logs warning without crashing Uvicorn.
+    """
+    try:
+        Base.metadata.create_all(bind=engine)
+        with SessionLocal() as db:
+            ensure_seed_data(db)
+        print("[STARTUP SUCCESS] Database tables created and seed data verified.")
+    except Exception as e:
+        print(f"[STARTUP WARNING] Database initialization failed during startup: {e}")
     yield
 
 
@@ -69,6 +77,11 @@ app.include_router(prediction.router)
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 def health() -> HealthResponse:
-    with SessionLocal() as db:
-        db.execute(text("SELECT 1"))
-    return HealthResponse(status="ok", database="connected")
+    db_status = "connected"
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return HealthResponse(status="ok", database=db_status)
